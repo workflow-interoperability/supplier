@@ -2,7 +2,6 @@ package worker
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/url"
 	"strconv"
@@ -19,7 +18,7 @@ func ReceiveRequestWorker(client worker.JobClient, job entities.Job) {
 	processID := "supplier"
 	iesmid := "2"
 	jobKey := job.GetKey()
-	log.Println("Start sign order " + strconv.Itoa(int(jobKey)))
+	log.Println("Start receive request " + strconv.Itoa(int(jobKey)))
 	payload, err := job.GetVariablesAsMap()
 	if err != nil {
 		log.Println(err)
@@ -57,13 +56,12 @@ func ReceiveRequestWorker(client worker.JobClient, job entities.Job) {
 			// get piis
 			processData, err := lib.GetIM("http://127.0.0.1:3004/api/IM/" + structMsg["id"].(string))
 			if err != nil {
-				log.Println(err)
-				lib.FailJob(client, job)
-				return
+				continue
 			}
-			if !(processData.Payload.WorkflowRelevantData.To.IESMID == iesmid && processData.Payload.WorkflowRelevantData.To.ProcessID == processID) {
-				payload["fromProcessInstanceID"].(map[string]string)["special-carrier"] = processData.Payload.WorkflowRelevantData.From.ProcessInstanceID
+			if !(processData.Payload.WorkflowRelevantData.To.IESMID == iesmid && processData.Payload.WorkflowRelevantData.To.ProcessID == processID && processData.Payload.WorkflowRelevantData.To.ProcessInstanceID == payload["processInstanceID"]) {
+				continue
 			}
+			payload["fromProcessInstanceID"].(map[string]interface{})["special-carrier"] = processData.Payload.WorkflowRelevantData.From.ProcessInstanceID
 			// create piis
 			id := lib.GenerateXID()
 			newPIIS := types.PIIS{
@@ -95,7 +93,7 @@ func ReceiveRequestWorker(client worker.JobClient, job entities.Job) {
 			finished = true
 		}
 		if finished {
-			fmt.Println("Send PIIS success.")
+			log.Println("Send PIIS success.")
 			break
 		}
 	}

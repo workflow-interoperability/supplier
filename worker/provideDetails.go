@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/workflow-interoperability/supplier/lib"
@@ -18,7 +19,8 @@ func ProviceDetailsWorker(client worker.JobClient, job entities.Job) {
 	processID := "supplier"
 	IESMID := "3"
 	jobKey := job.GetKey()
-	log.Println("Start place order " + strconv.Itoa(int(jobKey)))
+	log.Println("Start provide details " + strconv.Itoa(int(jobKey)))
+	time.Sleep(5 * time.Second)
 
 	payload, err := job.GetVariablesAsMap()
 	if err != nil {
@@ -49,7 +51,7 @@ func ProviceDetailsWorker(client worker.JobClient, job entities.Job) {
 				},
 				To: types.FromToData{
 					ProcessID:         "special-carrier",
-					ProcessInstanceID: payload["fromProcessInstanceID"].(map[string]string)["special-carrier"],
+					ProcessInstanceID: payload["fromProcessInstanceID"].(map[string]interface{})["special-carrier"].(string),
 					IESMID:            "3",
 				},
 			},
@@ -99,9 +101,8 @@ func ProviceDetailsWorker(client worker.JobClient, job entities.Job) {
 		}
 		switch structMsg["$class"].(string) {
 		case "org.sysu.wf.PIISCreatedEvent":
-			if ok, err := publishPIIS(structMsg["id"].(string), &newIM, "special-carrier", c); err != nil {
-				lib.FailJob(client, job)
-				return
+			if ok, err := publishPIIS("3003", structMsg["id"].(string), &newIM, "special-carrier", c); err != nil {
+				continue
 			} else if ok {
 				finished = true
 				break
